@@ -1,7 +1,7 @@
 package de.tim.logicCalc;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Scanner;
 
 /**
@@ -11,7 +11,8 @@ import java.util.Scanner;
  */
 public class Main {
 
-	private static HashSet<Formula.Variable> usedVariables = new HashSet<>();
+	//Need has map with int as key because HashSet doesn't know two variables are the same
+	private static HashMap<Integer, Formula.Variable> usedVariables = new HashMap<>();
 	private static ArrayList<Formula> formulas = new ArrayList<>();
 	private static Scanner s;
 
@@ -52,7 +53,7 @@ public class Main {
 		System.out.println("h			- Print this help.");
 		System.out.println("c			- Clear data.");
 		System.out.println("a [v|f] 	- Add data. v for Variable and f for Formula");
-		System.out.println("l [v|f] [c] - List data. v for Variable and f for Formula. If a is set use characters.");
+		System.out.println("l [v|f] [l] - List data. v for Variable and f for Formula. If l is set use letters.");
 		System.out.println();
 		System.out.println("Valid Variables:");
 		System.out.println("Fi with i being a natural number. Or:");
@@ -100,6 +101,10 @@ public class Main {
 					Main.usedVariables.clear();
 					Main.formulas.clear();
 				break;
+				case "q":
+					System.out.println("Bye.");
+					System.exit(0);
+				break;
 				case "a":
 					if (parts.length < 2) {
 						System.out.println("Need a argument to add. Use h for help.");
@@ -110,7 +115,7 @@ public class Main {
 						String v = Main.s.nextLine().toLowerCase();
 						Formula.Variable var = new Formula.Variable(v);
 						if (var.getVar() != -1) {
-							Main.usedVariables.add(var);
+							Main.usedVariables.put(new Integer(var.getVar()), var);
 						}
 						else {
 							System.out.println(v + " is not a valid variable.");
@@ -135,13 +140,26 @@ public class Main {
 						System.out.println("Need a argument to list. Use h for help.");
 						break;
 					}
-					if (parts[1].equals("v")) {
-						for (Formula.Variable i : Main.usedVariables) {
 
+					boolean letters = false;
+					if (parts.length > 2 && parts[2].equals("l")) {
+						letters = true;
+					}
+
+					if (parts[1].equals("v")) {
+						for (Formula.Variable i : Main.usedVariables.values()) {
+							if (letters) {
+								System.out.println(i.getIconAsLetter());
+							}
+							else {
+								System.out.println(i.getIcon());
+							}
 						}
 					}
 					else if (parts[1].equals("f")) {
-
+						for (Formula f : Main.formulas) {
+							System.out.println("In:" + f.getInput() + "; parsed:" + f.getString(letters));
+						}
 					}
 				break;
 				default:

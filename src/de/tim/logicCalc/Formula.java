@@ -9,7 +9,7 @@
  */
 package de.tim.logicCalc;
 
-import java.util.HashSet;
+import java.util.HashMap;
 
 /**
  * TODO: Description
@@ -21,7 +21,8 @@ public class Formula {
 	private String input;
 	private boolean valid = false;
 	private FormulaNode root;
-	private HashSet<Variable> usedVars = new HashSet<>();
+	//Need has map with int as key because HashSet doesn't know two variables are the same
+	private HashMap<Integer, Variable> usedVars = new HashMap<>();
 
 	private FormulaNode parseFormula(String f) {
 		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1)), null));
@@ -47,7 +48,9 @@ public class Formula {
 		}
 		Variable var = new Variable(f);
 		if (var.getVar() != -1) {
-			this.usedVars.add(var);
+			if (!this.usedVars.containsKey(new Integer(var.getVar()))) {
+				this.usedVars.put(new Integer(var.getVar()), var);
+			}
 			return new FormulaNode(var, null, null);
 		}
 		System.err.println("Couldn't parse: " + f);
@@ -67,6 +70,42 @@ public class Formula {
 		replacedI = replacedI.replace("->", ">");
 		this.valid = true;
 		this.root = parseFormula(replacedI);
+	}
+
+	/**
+	 * @param letters
+	 *            Whether to use letters for variables
+	 * @return a string representation of this formula.
+	 */
+	public String getString(boolean letters) {
+		return (this.root.getString(letters));
+	}
+
+	/**
+	 * Get's {@link #input input}
+	 * 
+	 * @return input
+	 */
+	public String getInput() {
+		return this.input;
+	}
+
+	/**
+	 * Get's {@link #valid valid}
+	 * 
+	 * @return valid
+	 */
+	public boolean isValid() {
+		return this.valid;
+	}
+
+	/**
+	 * Get's {@link #usedVars usedVars}
+	 * 
+	 * @return usedVars
+	 */
+	public HashMap<Integer, Variable> getUsedVars() {
+		return this.usedVars;
 	}
 
 	/**
@@ -93,6 +132,15 @@ public class Formula {
 			this.data = p_data;
 			this.child1 = p_child1;
 			this.child2 = p_child2;
+		}
+
+		/**
+		 * @param letters
+		 *            Whether to use letters for variables
+		 * @return A string representation of this node and it's childs
+		 */
+		public String getString(boolean letters) {
+			return (this.child1 != null && this.child2 != null ? "(" : "") + (this.child1 != null ? this.child1.getString(letters) : "") + this.data.getFancy(letters) + (this.child2 != null ? this.child2.getString(letters) : "") + (this.child1 != null && this.child2 != null ? ")" : "");
 		}
 
 		/**
@@ -140,20 +188,31 @@ public class Formula {
 		/** Logical not */
 		NOT("!"),
 		/** Logical implies -> */
-		IMPLIES(">"),
+		IMPLIES(">", "->"),
 		/** Logical equals <-> */
-		EQUAL("<");
+		EQUAL("<", "<->");
 
 		private String icon;
+		private String fancy;
 
 		private FormulaCharacter(String p_icon) {
 			this.icon = p_icon;
+			this.fancy = p_icon;
 		}
 
-		/** Returns the corresponding icon */
+		private FormulaCharacter(String p_icon, String p_fancy) {
+			this.icon = p_icon;
+			this.fancy = p_fancy;
+		}
+
 		@Override
 		public String getIcon() {
 			return this.icon;
+		}
+
+		@Override
+		public String getFancy(boolean letters) {
+			return this.fancy;
 		}
 
 		/**
@@ -220,6 +279,26 @@ public class Formula {
 		}
 
 		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#getFancy()
+		 */
+		@Override
+		public String getFancy(boolean letters) {
+			return (letters ? getIconAsLetter() : getIcon());
+		}
+
+		/**
+		 * @return the variable as letter (A-Z) if possible otherwise as in
+		 *         getIcon()
+		 */
+		public String getIconAsLetter() {
+			if (this.var < 27) {
+				char c = (char) (this.var + 96);
+				return c + "";
+			}
+			return getIcon();
+		}
+
+		/**
 		 * Get's {@link #var var}
 		 * 
 		 * @return var
@@ -249,32 +328,10 @@ public class Formula {
 		 * @return Returns the string icon /symbol
 		 */
 		public String getIcon();
-	}
 
-	/**
-	 * Get's {@link #input input}
-	 * 
-	 * @return input
-	 */
-	public String getInput() {
-		return this.input;
-	}
-
-	/**
-	 * Get's {@link #valid valid}
-	 * 
-	 * @return valid
-	 */
-	public boolean isValid() {
-		return this.valid;
-	}
-
-	/**
-	 * Get's {@link #usedVars usedVars}
-	 * 
-	 * @return usedVars
-	 */
-	public HashSet<Variable> getUsedVars() {
-		return this.usedVars;
+		/**
+		 * @return Returns the string icon /symbol (May be multiple chars.
+		 */
+		public String getFancy(boolean letters);
 	}
 }
