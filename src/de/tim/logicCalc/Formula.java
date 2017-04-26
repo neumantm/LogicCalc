@@ -1,0 +1,280 @@
+/*
+ * LogicCalc
+ *
+ * TODO: Project Beschreibung
+ *
+ * @author Tim Neumann
+ * @version 1.0.0
+ *
+ */
+package de.tim.logicCalc;
+
+import java.util.HashSet;
+
+/**
+ * TODO: Description
+ * 
+ * @author Tim Neumann
+ */
+public class Formula {
+
+	private String input;
+	private boolean valid = false;
+	private FormulaNode root;
+	private HashSet<Variable> usedVars = new HashSet<>();
+
+	private FormulaNode parseFormula(String f) {
+		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1)), null));
+		if (f.startsWith("(") && f.endsWith(")")) {
+			int pStat = 0;
+			int pos;
+			String subF = f.substring(1, f.length() - 1);
+			for (pos = 0; pos < subF.length(); pos++) {
+				if (subF.charAt(pos) == '(') {
+					pStat++;
+				}
+				if (subF.charAt(pos) == ')') {
+					pStat--;
+				}
+				if (pStat == 0) {
+					if (subF.charAt(pos) == '&') return new FormulaNode(FormulaCharacter.AND, parseFormula(subF.substring(0, pos)), parseFormula(subF.substring(pos + 1)));
+					if (subF.charAt(pos) == '|') return new FormulaNode(FormulaCharacter.OR, parseFormula(subF.substring(0, pos)), parseFormula(subF.substring(pos + 1)));
+					if (subF.charAt(pos) == '>') return new FormulaNode(FormulaCharacter.IMPLIES, parseFormula(subF.substring(0, pos)), parseFormula(subF.substring(pos + 1)));
+					if (subF.charAt(pos) == '<') return new FormulaNode(FormulaCharacter.EQUAL, parseFormula(subF.substring(0, pos)), parseFormula(subF.substring(pos + 1)));
+
+				}
+			}
+		}
+		Variable var = new Variable(f);
+		if (var.getVar() != -1) {
+			this.usedVars.add(var);
+			return new FormulaNode(var, null, null);
+		}
+		System.err.println("Couldn't parse: " + f);
+		this.valid = false;
+		return null;
+	}
+
+	/**
+	 * Creates a new formula
+	 * 
+	 * @param p_input
+	 *            The user input string
+	 */
+	public Formula(String p_input) {
+		this.input = p_input;
+		String replacedI = p_input.replace("<->", "<");
+		replacedI = replacedI.replace("->", ">");
+		this.valid = true;
+		this.root = parseFormula(replacedI);
+	}
+
+	/**
+	 * A formula Node
+	 * 
+	 * @author Tim Neumann
+	 */
+	static class FormulaNode {
+		private ValidFormChar data;
+		private FormulaNode child1;
+		private FormulaNode child2;
+
+		/**
+		 * Makes a new Formula Node
+		 * 
+		 * @param p_data
+		 *            The data of the node
+		 * @param p_child1
+		 *            The child to the left.
+		 * @param p_child2
+		 *            The child to the right.
+		 */
+		public FormulaNode(ValidFormChar p_data, FormulaNode p_child1, FormulaNode p_child2) {
+			this.data = p_data;
+			this.child1 = p_child1;
+			this.child2 = p_child2;
+		}
+
+		/**
+		 * Get's {@link #data data}
+		 * 
+		 * @return data
+		 */
+		public ValidFormChar getData() {
+			return this.data;
+		}
+
+		/**
+		 * Get's {@link #child1 child1}
+		 * 
+		 * @return child1
+		 */
+		public FormulaNode getChild1() {
+			return this.child1;
+		}
+
+		/**
+		 * Get's {@link #child2 child2}
+		 * 
+		 * @return child2
+		 */
+		public FormulaNode getChild2() {
+			return this.child2;
+		}
+	}
+
+	/**
+	 * All valid formula Icons other then Variables
+	 * 
+	 * @author Tim Neumann
+	 */
+	static enum FormulaCharacter implements ValidFormChar {
+		/** Left bracket */
+		P_LEFT("("),
+		/** Right bracket */
+		P_RIGHT(")"),
+		/** Logical or */
+		OR("|"),
+		/** Logical and */
+		AND("&"),
+		/** Logical not */
+		NOT("!"),
+		/** Logical implies -> */
+		IMPLIES(">"),
+		/** Logical equals <-> */
+		EQUAL("<");
+
+		private String icon;
+
+		private FormulaCharacter(String p_icon) {
+			this.icon = p_icon;
+		}
+
+		/** Returns the corresponding icon */
+		@Override
+		public String getIcon() {
+			return this.icon;
+		}
+
+		/**
+		 * Returns the Formula character by icon /symbol string
+		 * 
+		 * @param icon
+		 *            The icon / symbol string
+		 * @return The formula character
+		 */
+		public static FormulaCharacter getFromIcon(String icon) {
+			for (FormulaCharacter fI : FormulaCharacter.values()) {
+				if (fI.icon.equals(icon)) return fI;
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * A valid variable.
+	 * 
+	 * @author Tim Neumann
+	 */
+	static class Variable implements ValidFormChar {
+		private int var;
+
+		/**
+		 * Inits a new variable
+		 * 
+		 * @param p_var
+		 *            The value
+		 */
+		public Variable(int p_var) {
+			this.var = p_var;
+		}
+
+		/**
+		 * Inits a new variable with a string
+		 * 
+		 * @param p_var
+		 *            The value
+		 */
+		public Variable(String p_var) {
+			if (p_var.length() == 1 && p_var.charAt(0) > 96 && p_var.charAt(0) < 123) {
+				this.var = (p_var.charAt(0) - 96);
+			}
+			else if (p_var.startsWith("f")) {
+				try {
+					this.var = Integer.parseInt(p_var.substring(1));
+				} catch (NumberFormatException e) {
+					this.var = -1;
+				}
+			}
+			else {
+				this.var = -1;
+			}
+		}
+
+		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#getIcon()
+		 */
+		@Override
+		public String getIcon() {
+			return "f" + this.var;
+		}
+
+		/**
+		 * Get's {@link #var var}
+		 * 
+		 * @return var
+		 */
+		public int getVar() {
+			return this.var;
+		}
+
+		/**
+		 * Set's {@link #var var}
+		 * 
+		 * @param var
+		 *            var
+		 */
+		public void setVar(int var) {
+			this.var = var;
+		}
+	}
+
+	/**
+	 * A valid formula character
+	 * 
+	 * @author Tim Neumann
+	 */
+	static interface ValidFormChar {
+		/**
+		 * @return Returns the string icon /symbol
+		 */
+		public String getIcon();
+	}
+
+	/**
+	 * Get's {@link #input input}
+	 * 
+	 * @return input
+	 */
+	public String getInput() {
+		return this.input;
+	}
+
+	/**
+	 * Get's {@link #valid valid}
+	 * 
+	 * @return valid
+	 */
+	public boolean isValid() {
+		return this.valid;
+	}
+
+	/**
+	 * Get's {@link #usedVars usedVars}
+	 * 
+	 * @return usedVars
+	 */
+	public HashSet<Variable> getUsedVars() {
+		return this.usedVars;
+	}
+}
