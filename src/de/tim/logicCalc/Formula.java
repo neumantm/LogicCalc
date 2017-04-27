@@ -19,6 +19,7 @@ import java.util.HashMap;
  */
 public class Formula {
 
+	private String name;
 	private String input;
 	private boolean valid = false;
 	private FormulaNode root;
@@ -54,6 +55,14 @@ public class Formula {
 			}
 			return new FormulaNode(var, null, null);
 		}
+
+		for (Formula form : Main.formulas) {
+			if (form.getName().toLowerCase().equals(f)) {
+				this.usedVars.putAll(form.usedVars);
+				return form.root;
+			}
+		}
+
 		System.err.println("Couldn't parse: " + f);
 		this.valid = false;
 		return null;
@@ -64,8 +73,11 @@ public class Formula {
 	 * 
 	 * @param p_input
 	 *            The user input string
+	 * @param p_name
+	 *            The name of the formula
 	 */
-	public Formula(String p_input) {
+	public Formula(String p_input, String p_name) {
+		this.name = p_name;
 		this.input = p_input;
 		String replacedI = p_input.replace("<->", "<");
 		replacedI = replacedI.replace("->", ">");
@@ -84,7 +96,7 @@ public class Formula {
 	 */
 	public int calculate(HashMap<Integer, Integer> values) throws MalformedParametersException {
 		for (Integer i : this.usedVars.keySet()) {
-			if (!values.containsKey(i)) throw new MalformedParametersException("Variable F" + i + " not set.");
+			if (!values.containsKey(i)) throw new MalformedParametersException("Variable A" + i + " not set.");
 		}
 		return this.root.calculate(values);
 	}
@@ -95,7 +107,7 @@ public class Formula {
 	 * @return a string representation of this formula.
 	 */
 	public String getString(boolean letters) {
-		return (this.root.getString(letters));
+		return (this.name + "=" + this.root.getString(letters));
 	}
 
 	/**
@@ -316,7 +328,7 @@ public class Formula {
 			if (p_var.length() == 1 && p_var.charAt(0) > 96 && p_var.charAt(0) < 123) {
 				this.var = (p_var.charAt(0) - 96);
 			}
-			else if (p_var.startsWith("f")) {
+			else if (p_var.startsWith("a")) {
 				try {
 					this.var = Integer.parseInt(p_var.substring(1));
 				} catch (NumberFormatException e) {
@@ -333,7 +345,7 @@ public class Formula {
 		 */
 		@Override
 		public String getIcon() {
-			return "f" + this.var;
+			return "A" + this.var;
 		}
 
 		/**
@@ -350,7 +362,7 @@ public class Formula {
 		 */
 		public String getIconAsLetter() {
 			if (this.var < 27) {
-				char c = (char) (this.var + 96);
+				char c = (char) (this.var + 64);
 				return c + "";
 			}
 			return getIcon();
@@ -388,8 +400,29 @@ public class Formula {
 		public String getIcon();
 
 		/**
+		 * @param letters
+		 *            Whether to print variables as letters
 		 * @return Returns the string icon /symbol (May be multiple chars.
 		 */
 		public String getFancy(boolean letters);
+	}
+
+	/**
+	 * Get's {@link #name name}
+	 * 
+	 * @return name
+	 */
+	public String getName() {
+		return this.name;
+	}
+
+	/**
+	 * Set's {@link #name name}
+	 * 
+	 * @param name
+	 *            name
+	 */
+	public void setName(String name) {
+		this.name = name;
 	}
 }

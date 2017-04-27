@@ -13,7 +13,7 @@ import java.util.Scanner;
 public class Main {
 
 	//Need has map with int as key because HashSet doesn't know two variables are the same
-	private static ArrayList<Formula> formulas = new ArrayList<>();
+	public static ArrayList<Formula> formulas = new ArrayList<>();
 	private static Scanner s;
 
 	/*	private static boolean validateFormula(String f) {
@@ -49,16 +49,17 @@ public class Main {
 		System.out.println(" -h --help Print this help.");
 		System.out.println();
 		System.out.println("Cli Commands");
-		System.out.println("q			- Quit.");
-		System.out.println("h			- Print this help.");
-		System.out.println("c			- Clear data.");
-		System.out.println("a [<form>] 	- Adds a formula. If not specified the program will ask for it later");
-		System.out.println("l [l] 		- List data. If l is set, use letters.");
-		System.out.println("m [l] 		- Compute data and display as matrix. If l is set, use letters.");
+		System.out.println("q					- Quit.");
+		System.out.println("h					- Print this help.");
+		System.out.println("cl					- Clear data.");
+		System.out.println("a [<forms>] 		- Adds a formula. If not specified the program will ask for it later.");
+		System.out.println("list [l] 			- List data. If l is set, use letters.");
+		System.out.println("comp [l] 			- Compute data and display as matrix. If l is set, use letters.");
+		System.out.println("all <name>	<val>	- Checks if the formula ");
 		System.out.println();
 		System.out.println("Valid Variables:");
-		System.out.println("Fi with i being a natural number. Or:");
-		System.out.println("A-Z meaning A = F1, B = F2 , ... , Z = F26.");
+		System.out.println("Ai with i being a natural number. Or:");
+		System.out.println("A-Z meaning A = A1, B = A2 , ... , Z = A26.");
 		System.out.println();
 		System.out.println("Formula syntax:");
 		System.out.println("( means (");
@@ -102,7 +103,7 @@ public class Main {
 				case "h":
 					Main.printHelp();
 				break;
-				case "c":
+				case "cl":
 					Main.formulas.clear();
 				break;
 				case "q":
@@ -112,7 +113,7 @@ public class Main {
 				case "a":
 					if (parts.length >= 2) {
 						for (int i = 1; i < parts.length; i++) {
-							Formula form = new Formula(parts[i]);
+							Formula form = new Formula(parts[i], "F" + Main.formulas.size());
 							if (!form.isValid()) {
 								System.out.println(form.getInput() + " is not a valid formula.");
 							}
@@ -123,7 +124,7 @@ public class Main {
 					}
 					else {
 						System.out.println("Please enter a formula");
-						Formula form = new Formula(Main.s.nextLine().toLowerCase());
+						Formula form = new Formula(Main.s.nextLine().toLowerCase(), "F" + Main.formulas.size());
 						if (!form.isValid()) {
 							System.out.println(form.getInput() + " is not a valid formula.");
 						}
@@ -132,7 +133,78 @@ public class Main {
 						}
 					}
 				break;
-				case "l":
+				case "all":
+					if (parts.length >= 3) {
+						Formula f = null;
+						int value = -1;
+						try {
+							f = Main.formulas.get(Integer.parseInt(parts[1].substring(1)));
+						} catch (NumberFormatException e) {
+							System.out.println("Not a valid Formula");
+							break;
+						}
+						try {
+							value = Integer.parseInt(parts[2]);
+							if (value < 0 || value > 1) throw new NumberFormatException();
+						} catch (NumberFormatException e) {
+							System.out.println("Not a valid value");
+							break;
+						}
+
+						usedVars = new ArrayList<>();
+						for (Formula.Variable v : f.getUsedVars().values()) {
+							if (!usedVars.contains(new Integer(v.getVar()))) {
+								usedVars.add(new Integer(v.getVar()));
+							}
+						}
+						Collections.sort(usedVars);
+
+						boolean loopRunning = true;
+						boolean matched = true;
+						int[] values = new int[usedVars.size()];
+						HashMap<Integer, Integer> val;
+
+						while (loopRunning) {
+							val = new HashMap<>();
+
+							for (int i = 0; i < values.length; i++) {
+								val.put(usedVars.get(i), new Integer(values[i]));
+							}
+
+							if (f.calculate(val) != value) {
+								matched = false;
+							}
+
+							int carry = 1;
+							for (int i = values.length - 1; i >= 0; i--) {
+								if (carry == 0) {
+									continue;
+								}
+
+								if (values[i] == 0) {
+									carry = 0;
+									values[i] = 1;
+								}
+								else {
+									values[i] = 0;
+								}
+							}
+							if (carry == 1) {
+								loopRunning = false;
+							}
+						}
+						if (matched) {
+							System.out.println("YES, this formula is always " + value);
+						}
+						else {
+							System.out.println("NO, this formula is not always " + value);
+						}
+					}
+					else {
+						System.out.println("Need a name and a value.");
+					}
+				break;
+				case "list":
 					letters = false;
 					if (parts.length > 1 && parts[1].equals("l")) {
 						letters = true;
@@ -158,7 +230,7 @@ public class Main {
 						System.out.println("In:" + f.getInput() + "; parsed:" + f.getString(letters));
 					}
 				break;
-				case "m":
+				case "comp":
 					letters = false;
 					if (parts.length > 1 && parts[1].equals("l")) {
 						letters = true;
