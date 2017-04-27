@@ -9,6 +9,7 @@
  */
 package de.tim.logicCalc;
 
+import java.lang.reflect.MalformedParametersException;
 import java.util.HashMap;
 
 /**
@@ -25,7 +26,7 @@ public class Formula {
 	private HashMap<Integer, Variable> usedVars = new HashMap<>();
 
 	private FormulaNode parseFormula(String f) {
-		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1)), null));
+		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, null, parseFormula(f.substring(1))));
 		if (f.startsWith("(") && f.endsWith(")")) {
 			int pStat = 0;
 			int pos;
@@ -70,6 +71,22 @@ public class Formula {
 		replacedI = replacedI.replace("->", ">");
 		this.valid = true;
 		this.root = parseFormula(replacedI);
+	}
+
+	/**
+	 * Calculates the value of the formula vor given values.
+	 * 
+	 * @param values
+	 *            The values of the variables (Variable -> Value)
+	 * @return The result.
+	 * @throws MalformedParametersException
+	 *             When a needed variable is not defined.
+	 */
+	public int calculate(HashMap<Integer, Integer> values) throws MalformedParametersException {
+		for (Integer i : this.usedVars.keySet()) {
+			if (!values.containsKey(i)) throw new MalformedParametersException("Variable F" + i + " not set.");
+		}
+		return this.root.calculate(values);
 	}
 
 	/**
@@ -132,6 +149,47 @@ public class Formula {
 			this.data = p_data;
 			this.child1 = p_child1;
 			this.child2 = p_child2;
+		}
+
+		/**
+		 * Calculates the value of this subtree of the formula
+		 * 
+		 * @param values
+		 *            The values of all required variables.
+		 * @return The result.
+		 */
+		public int calculate(HashMap<Integer, Integer> values) {
+
+			if (this.data instanceof Variable) {
+				Variable var = (Variable) this.data;
+				return values.get(new Integer(var.getVar()));
+			}
+			else if (this.data instanceof FormulaCharacter) {
+				FormulaCharacter c = (FormulaCharacter) this.data;
+				switch (c) {
+					case OR:
+						return Math.max(this.child1.calculate(values), this.child2.calculate(values));
+					case AND:
+						return Math.min(this.child1.calculate(values), this.child2.calculate(values));
+					case NOT:
+						return 1 - this.child2.calculate(values);
+					case IMPLIES:
+						return Math.max((1 - this.child1.calculate(values)), this.child2.calculate(values));
+					case EQUAL:
+						if (this.child1.calculate(values) == this.child2.calculate(values)) return 1;
+						return 0;
+					default:
+						System.err.println("A invalud logic Operator!!! Exiting");
+						System.exit(1);
+				}
+			}
+			else {
+				System.err.println("A invalud valudFormulaCharacter!!! Exiting");
+				System.exit(1);
+			}
+
+			return -1;
+
 		}
 
 		/**

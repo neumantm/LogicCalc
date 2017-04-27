@@ -1,6 +1,7 @@
 package de.tim.logicCalc;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -12,7 +13,6 @@ import java.util.Scanner;
 public class Main {
 
 	//Need has map with int as key because HashSet doesn't know two variables are the same
-	private static HashMap<Integer, Formula.Variable> usedVariables = new HashMap<>();
 	private static ArrayList<Formula> formulas = new ArrayList<>();
 	private static Scanner s;
 
@@ -52,8 +52,9 @@ public class Main {
 		System.out.println("q			- Quit.");
 		System.out.println("h			- Print this help.");
 		System.out.println("c			- Clear data.");
-		System.out.println("a [v|f] 	- Add data. v for Variable and f for Formula");
-		System.out.println("l [v|f] [l] - List data. v for Variable and f for Formula. If l is set use letters.");
+		System.out.println("a [<form>] 	- Adds a formula. If not specified the program will ask for it later");
+		System.out.println("l [l] 		- List data. If l is set, use letters.");
+		System.out.println("m [l] 		- Compute data and display as matrix. If l is set, use letters.");
 		System.out.println();
 		System.out.println("Valid Variables:");
 		System.out.println("Fi with i being a natural number. Or:");
@@ -87,6 +88,10 @@ public class Main {
 		System.out.println("Welcome to the logic calculator. Type h for help.");
 		boolean stop = false;
 		Main.s = new Scanner(System.in);
+
+		boolean letters;
+		ArrayList<Integer> usedVars;
+
 		while (!stop) {
 			System.out.println();
 			System.out.print(">");
@@ -98,7 +103,6 @@ public class Main {
 					Main.printHelp();
 				break;
 				case "c":
-					Main.usedVariables.clear();
 					Main.formulas.clear();
 				break;
 				case "q":
@@ -106,22 +110,18 @@ public class Main {
 					System.exit(0);
 				break;
 				case "a":
-					if (parts.length < 2) {
-						System.out.println("Need a argument to add. Use h for help.");
-						break;
-					}
-					if (parts[1].equals("v")) {
-						System.out.println("Please enter a variable");
-						String v = Main.s.nextLine().toLowerCase();
-						Formula.Variable var = new Formula.Variable(v);
-						if (var.getVar() != -1) {
-							Main.usedVariables.put(new Integer(var.getVar()), var);
-						}
-						else {
-							System.out.println(v + " is not a valid variable.");
+					if (parts.length >= 2) {
+						for (int i = 1; i < parts.length; i++) {
+							Formula form = new Formula(parts[i]);
+							if (!form.isValid()) {
+								System.out.println(form.getInput() + " is not a valid formula.");
+							}
+							else {
+								Main.formulas.add(form);
+							}
 						}
 					}
-					else if (parts[1].equals("f")) {
+					else {
 						System.out.println("Please enter a formula");
 						Formula form = new Formula(Main.s.nextLine().toLowerCase());
 						if (!form.isValid()) {
@@ -131,36 +131,145 @@ public class Main {
 							Main.formulas.add(form);
 						}
 					}
-					else {
-						System.out.println(parts[1] + " is no valid first argument for add. Use h for help.");
-					}
 				break;
 				case "l":
-					if (parts.length < 2) {
-						System.out.println("Need a argument to list. Use h for help.");
-						break;
-					}
-
-					boolean letters = false;
-					if (parts.length > 2 && parts[2].equals("l")) {
+					letters = false;
+					if (parts.length > 1 && parts[1].equals("l")) {
 						letters = true;
 					}
+					usedVars = new ArrayList<>();
+					for (Formula f : Main.formulas) {
+						for (Formula.Variable v : f.getUsedVars().values()) {
+							if (!usedVars.contains(new Integer(v.getVar()))) {
+								usedVars.add(new Integer(v.getVar()));
+							}
+						}
+					}
+					Collections.sort(usedVars);
 
-					if (parts[1].equals("v")) {
-						for (Formula.Variable i : Main.usedVariables.values()) {
-							if (letters) {
-								System.out.println(i.getIconAsLetter());
+					System.out.print("Used variables: ");
+					for (Integer i : usedVars) {
+						System.out.print(new Formula.Variable(i).getFancy(letters) + ", ");
+					}
+					System.out.println();
+
+					System.out.println("Formulas:");
+					for (Formula f : Main.formulas) {
+						System.out.println("In:" + f.getInput() + "; parsed:" + f.getString(letters));
+					}
+				break;
+				case "m":
+					letters = false;
+					if (parts.length > 1 && parts[1].equals("l")) {
+						letters = true;
+					}
+					usedVars = new ArrayList<>();
+					for (Formula f : Main.formulas) {
+						for (Formula.Variable v : f.getUsedVars().values()) {
+							if (!usedVars.contains(new Integer(v.getVar()))) {
+								usedVars.add(new Integer(v.getVar()));
+							}
+						}
+					}
+					Collections.sort(usedVars);
+					System.out.println("Result:");
+					System.out.print(" ");
+
+					int[] lengthses = new int[usedVars.size() + Main.formulas.size()];
+					int lengthsesC = 0;
+
+					for (Integer i : usedVars) {
+						String st = new Formula.Variable(i).getFancy(letters);
+						lengthses[lengthsesC] = st.length();
+						lengthsesC++;
+						System.out.print(st + " | ");
+
+					}
+
+					for (Formula f : Main.formulas) {
+						String st = f.getString(letters);
+						lengthses[lengthsesC] = st.length();
+						lengthsesC++;
+
+						System.out.print(st + " | ");
+					}
+
+					//rows
+
+					boolean loopRunning = true;
+					int[] values = new int[usedVars.size()];
+					HashMap<Integer, Integer> val;
+
+					System.out.println();
+					System.out.print(" ");
+
+					while (loopRunning) {
+						val = new HashMap<>();
+						lengthsesC = 0;
+
+						for (int i = 0; i < values.length; i++) {
+							val.put(usedVars.get(i), new Integer(values[i]));
+						}
+
+						for (int i : values) {
+							int len = lengthses[lengthsesC] - 1;
+							lengthsesC++;
+							int len2 = len / 2;
+							String buff1 = "";
+							String buff2 = "";
+
+							for (int j = 0; j < len; j++) {
+								if (j < len2) {
+									buff1 += " ";
+								}
+								else {
+									buff2 += " ";
+								}
+							}
+
+							System.out.print(buff1 + i + buff2 + " | ");
+						}
+						for (Formula f : Main.formulas) {
+							int len = lengthses[lengthsesC] - 1;
+							lengthsesC++;
+							int len2 = len / 2;
+							String buff1 = "";
+							String buff2 = "";
+
+							for (int j = 0; j < len; j++) {
+								if (j < len2) {
+									buff1 += " ";
+								}
+								else {
+									buff2 += " ";
+								}
+							}
+
+							System.out.print(buff1 + f.calculate(val) + buff2 + " | ");
+						}
+
+						int carry = 1;
+						for (int i = values.length - 1; i >= 0; i--) {
+							if (carry == 0) {
+								continue;
+							}
+
+							if (values[i] == 0) {
+								carry = 0;
+								values[i] = 1;
 							}
 							else {
-								System.out.println(i.getIcon());
+								values[i] = 0;
 							}
 						}
-					}
-					else if (parts[1].equals("f")) {
-						for (Formula f : Main.formulas) {
-							System.out.println("In:" + f.getInput() + "; parsed:" + f.getString(letters));
+						if (carry == 1) {
+							loopRunning = false;
 						}
+
+						System.out.println();
+						System.out.print(" ");
 					}
+
 				break;
 				default:
 					System.out.println(parts[0] + " is no valid command. Use h for help.");
