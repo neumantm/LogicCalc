@@ -10,6 +10,7 @@
 package de.tim.logicCalc;
 
 import java.lang.reflect.MalformedParametersException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -27,7 +28,7 @@ public class Formula {
 	private HashMap<Integer, Variable> usedVars = new HashMap<>();
 
 	private FormulaNode parseFormula(String f) {
-		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, null, parseFormula(f.substring(1))));
+		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1))));
 		if (f.startsWith("(") && f.endsWith(")")) {
 			int pStat = 0;
 			int pos;
@@ -47,6 +48,7 @@ public class Formula {
 
 				}
 			}
+
 		}
 		Variable var = new Variable(f);
 		if (var.getVar() != -1) {
@@ -144,8 +146,34 @@ public class Formula {
 	 */
 	static class FormulaNode {
 		private ValidFormChar data;
-		private FormulaNode child1;
-		private FormulaNode child2;
+		private ArrayList<FormulaNode> children;
+
+		/**
+		 * Makes a new Formula Node
+		 * 
+		 * @param p_data
+		 *            The data of the node
+		 * @param p_children
+		 *            The children of the Formula Node
+		 */
+		public FormulaNode(ValidFormChar p_data, ArrayList<FormulaNode> p_children) {
+			this.data = p_data;
+			this.children = p_children;
+		}
+
+		/**
+		 * Makes a new Formula Node
+		 * 
+		 * @param p_data
+		 *            The data of the node
+		 * @param p_only_child
+		 *            The children of the Formula Node
+		 */
+		public FormulaNode(ValidFormChar p_data, FormulaNode p_only_child) {
+			this.data = p_data;
+			this.children = new ArrayList<>();
+			this.children.add(p_only_child);
+		}
 
 		/**
 		 * Makes a new Formula Node
@@ -153,14 +181,15 @@ public class Formula {
 		 * @param p_data
 		 *            The data of the node
 		 * @param p_child1
-		 *            The child to the left.
+		 *            The children of the Formula Node
 		 * @param p_child2
-		 *            The child to the right.
+		 *            The children of the Formula Node
 		 */
 		public FormulaNode(ValidFormChar p_data, FormulaNode p_child1, FormulaNode p_child2) {
 			this.data = p_data;
-			this.child1 = p_child1;
-			this.child2 = p_child2;
+			this.children = new ArrayList<>();
+			this.children.add(p_child1);
+			this.children.add(p_child2);
 		}
 
 		/**
@@ -174,21 +203,38 @@ public class Formula {
 
 			if (this.data instanceof Variable) {
 				Variable var = (Variable) this.data;
-				return values.get(new Integer(var.getVar()));
+				return values.get(new Integer(var.getVar())).intValue();
 			}
 			else if (this.data instanceof FormulaCharacter) {
 				FormulaCharacter c = (FormulaCharacter) this.data;
+				int res;
 				switch (c) {
 					case OR:
-						return Math.max(this.child1.calculate(values), this.child2.calculate(values));
+						res = 0;
+						for (FormulaNode child : this.children) {
+							int cCalc = child.calculate(values);
+							if (cCalc > res) {
+								res = cCalc;
+								break;
+							}
+						}
+						return res;
 					case AND:
-						return Math.min(this.child1.calculate(values), this.child2.calculate(values));
+						res = 1;
+						for (FormulaNode child : this.children) {
+							int cCalc = child.calculate(values);
+							if (cCalc < res) {
+								res = cCalc;
+								break;
+							}
+						}
+						return res;
 					case NOT:
-						return 1 - this.child2.calculate(values);
+						return 1 - this.children.get(0).calculate(values);
 					case IMPLIES:
-						return Math.max((1 - this.child1.calculate(values)), this.child2.calculate(values));
+						return Math.max((1 - this.children.get(0).calculate(values)), this.children.get(1).calculate(values));
 					case EQUAL:
-						if (this.child1.calculate(values) == this.child2.calculate(values)) return 1;
+						if (this.children.get(0).calculate(values) == this.children.get(1).calculate(values)) return 1;
 						return 0;
 					default:
 						System.err.println("A invalud logic Operator!!! Exiting");
@@ -210,7 +256,17 @@ public class Formula {
 		 * @return A string representation of this node and it's childs
 		 */
 		public String getString(boolean letters) {
-			return (this.child1 != null && this.child2 != null ? "(" : "") + (this.child1 != null ? this.child1.getString(letters) : "") + this.data.getFancy(letters) + (this.child2 != null ? this.child2.getString(letters) : "") + (this.child1 != null && this.child2 != null ? ")" : "");
+			String ret = (this.children.size() > 1 ? "(" : "");
+
+			for (int i = 0; i < this.children.size(); i++) {
+				if (i != 0 && this.children.size() != 1) {
+					ret += this.data.getFancy(letters);
+				}
+				ret += this.children.get(i).getString(letters);
+			}
+			ret += (this.children.size() > 1 ? ")" : "");
+
+			return ret;
 		}
 
 		/**
@@ -223,21 +279,12 @@ public class Formula {
 		}
 
 		/**
-		 * Get's {@link #child1 child1}
+		 * Get's {@link #children children}
 		 * 
-		 * @return child1
+		 * @return children
 		 */
-		public FormulaNode getChild1() {
-			return this.child1;
-		}
-
-		/**
-		 * Get's {@link #child2 child2}
-		 * 
-		 * @return child2
-		 */
-		public FormulaNode getChild2() {
-			return this.child2;
+		public ArrayList<FormulaNode> getChildren() {
+			return this.children;
 		}
 	}
 
@@ -298,7 +345,7 @@ public class Formula {
 			}
 			return null;
 		}
-	}
+	}h
 
 	/**
 	 * A valid variable.
