@@ -12,6 +12,7 @@ package de.tim.logicCalc;
 import java.lang.reflect.MalformedParametersException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map.Entry;
 
 /**
  * TODO: Description
@@ -28,8 +29,6 @@ public class Formula {
 	private HashMap<Integer, Variable> usedVars = new HashMap<>();
 
 	private FormulaNode parseFormula(String f) {
-		//Process Not
-		if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1))));
 		//Process single Varibales
 		Variable var = new Variable(f);
 		if (var.getVar() != -1) {
@@ -46,20 +45,28 @@ public class Formula {
 			}
 		}
 
+		//Process parantheses on the outside
+		int paranthesCount = 1;
+		if (f.startsWith("(") && f.endsWith(")")) {
+			int pos = 1;
+			while (paranthesCount > 0) {
+				if (f.charAt(pos) == '(') {
+					paranthesCount++;
+				}
+				else if (f.charAt(pos) == ')') {
+					paranthesCount--;
+				}
+				pos++;
+				if (pos == f.length()) return parseFormula(f.substring(1, f.length() - 1));
+			}
+		}
+
 		//Process all binary operators
 		FormulaCharacter lookingFor = FormulaCharacter.AND;
 		ArrayList<Integer> positions = new ArrayList<>();
-		int paranthesCount = 0;
-		int start = 0;
-		int end = f.length();
-		int parOffset = 0;
-		if (f.startsWith("(") && f.endsWith(")")) {
-			start++;
-			end--;
-			parOffset = 1;
-		}
+		paranthesCount = 0;
 
-		for (int i = start; i < end; i++) {
+		for (int i = 0; i < f.length(); i++) {
 			if (f.charAt(i) == '(') {
 				paranthesCount++;
 			}
@@ -98,7 +105,9 @@ public class Formula {
 		}
 
 		if (positions.size() == 0) {
-			if (f.startsWith("(") && f.endsWith(")")) return parseFormula(f.substring(1, f.length() - 1));
+			//Process Not if no binary is found
+			if (f.startsWith("!")) return (new FormulaNode(FormulaCharacter.NOT, parseFormula(f.substring(1))));
+
 			System.err.println("Couldn't parse: " + f);
 			this.valid = false;
 			return null;
@@ -111,7 +120,7 @@ public class Formula {
 				return null;
 			}
 			int pos = positions.get(0).intValue();
-			return new FormulaNode(FormulaCharacter.IMPLIES, parseFormula(f.substring(parOffset, pos)), parseFormula(f.substring(pos + 1, f.length() - parOffset)));
+			return new FormulaNode(FormulaCharacter.IMPLIES, parseFormula(f.substring(0, pos)), parseFormula(f.substring(pos + 1)));
 		}
 		else if (lookingFor == FormulaCharacter.EQUAL) {
 			if (positions.size() > 1) {
@@ -120,18 +129,18 @@ public class Formula {
 				return null;
 			}
 			int pos = positions.get(0).intValue();
-			return new FormulaNode(FormulaCharacter.EQUAL, parseFormula(f.substring(parOffset, pos)), parseFormula(f.substring(pos + 1, f.length() - parOffset)));
+			return new FormulaNode(FormulaCharacter.EQUAL, parseFormula(f.substring(0, pos)), parseFormula(f.substring(pos + 1)));
 		}
 		else {
 			int pos;
-			int lastPos = parOffset - 1;
+			int lastPos = -1;
 			ArrayList<FormulaNode> subForms = new ArrayList<>();
 			for (int i = 0; i < positions.size(); i++) {
 				pos = positions.get(i).intValue();
 				subForms.add(parseFormula(f.substring(lastPos + 1, pos)));
 				lastPos = pos;
 			}
-			subForms.add(parseFormula(f.substring(lastPos + 1, f.length() - parOffset)));
+			subForms.add(parseFormula(f.substring(lastPos + 1)));
 			return new FormulaNode(lookingFor, subForms);
 		}
 
@@ -185,6 +194,14 @@ public class Formula {
 		this.root = parseFormula(replacedI);
 	}
 
+	private Formula(String p_input, String p_name, FormulaNode p_root, HashMap<Integer, Variable> p_usedVars) {
+		this.name = p_name;
+		this.input = p_input;
+		this.valid = true;
+		this.root = p_root;
+		this.usedVars = p_usedVars;
+	}
+
 	/**
 	 * Calculates the value of the formula vor given values.
 	 * 
@@ -208,6 +225,63 @@ public class Formula {
 	 */
 	public String getString(boolean letters) {
 		return (this.name + "=" + this.root.getString(letters));
+	}
+
+	/**
+	 * 
+	 * @param letters
+	 *            Whether to use letters for variables
+	 * 
+	 * @return The latex code for this formula
+	 */
+	public String getLatex(boolean letters) {
+		return ("$" + this.name + "=" + this.root.getLatex(letters) + "$");
+	}
+
+	/**
+	 * 
+	 * @param letters
+	 *            Whether to use letters for variables
+	 * 
+	 * @return The latex code for the syntax tree for this formula
+	 */
+	public String getLatexTree(boolean letters) {
+		String tree = "\\begin{tikzpicture}[level/.style ={sibling distance=60mm/#1}]\n" +
+				"\\node[circle,draw] ";
+		tree += "{$" + this.root.getData().getLatex(letters) + "$}";
+		tree += "\n";
+		for (int i = 0; i < this.root.getChildren().size(); i++) {
+			String[] childCont = this.root.getChildren().get(i).getLatexTreePart(letters);
+			for (int j = 0; j < childCont.length; j++) {
+				String line = childCont[j];
+				if (i == this.root.getChildren().size() - 1 && j == childCont.length - 1) {
+					tree += "    " + line + ";\n";
+				}
+				else {
+					tree += "    " + line + "\n";
+				}
+			}
+		}
+		tree += "\\end{tikzpicture}";
+		return tree;
+	}
+
+	/**
+	 * Converts this formula to simple notation without implies and equals.
+	 * 
+	 * @param newName
+	 *            The new name for the formula
+	 * 
+	 * @return The new Formula.
+	 */
+	public Formula convertToSimple(String newName) {
+		FormulaNode newRoot = this.root.convertToSimple();
+		HashMap<Integer, Variable> newUsedVars = new HashMap<>();
+		for (Entry<Integer, Formula.Variable> e : this.usedVars.entrySet()) {
+			newUsedVars.put(new Integer(e.getKey().intValue()), (Variable) e.getValue().copy());
+		}
+
+		return new Formula(this.input + " (converted)", newName, newRoot, newUsedVars);
 	}
 
 	/**
@@ -384,6 +458,91 @@ public class Formula {
 		}
 
 		/**
+		 * @param letters
+		 *            Whether to use letters for variables
+		 * @return The latex code of this node and it's childs
+		 */
+		public String getLatex(boolean letters) {
+			boolean needsPrantheses = (this.data == FormulaCharacter.AND) || (this.data == FormulaCharacter.OR);
+			String ret = (needsPrantheses ? "(" : "");
+
+			if (this.children.size() <= 1) {
+				ret += this.data.getLatex(letters);
+			}
+
+			for (int i = 0; i < this.children.size(); i++) {
+				if (i != 0) {
+					ret += this.data.getLatex(letters);
+				}
+				ret += this.children.get(i).getLatex(letters);
+			}
+			ret += (needsPrantheses ? ")" : "");
+
+			return ret;
+		}
+
+		/**
+		 * @param letters
+		 *            Whether to use letters for variables
+		 * @return The latex code for the subtree(of the syntax tree) of this
+		 *         node and it's childs
+		 */
+		public String[] getLatexTreePart(boolean letters) {
+			ArrayList<String> ret = new ArrayList<>();
+			String line1 = "child {node [circle,draw] ";
+			line1 += "{$" + this.data.getLatex(letters) + "$}";
+
+			if (this.children.size() == 0) {
+				line1 += "}";
+				String[] arr = new String[1];
+				arr[0] = line1;
+				return arr;
+			}
+
+			ret.add(line1);
+
+			for (int i = 0; i < this.children.size(); i++) {
+				String[] childCont = this.children.get(i).getLatexTreePart(letters);
+				for (String s : childCont) {
+					ret.add("    " + s);
+				}
+			}
+			ret.add("}");
+
+			return ret.toArray(new String[1]);
+		}
+
+		/**
+		 * Converts this node and all children to simple noatation.
+		 * 
+		 * @return The new node.
+		 */
+		public FormulaNode convertToSimple() {
+			if ((this.data != FormulaCharacter.IMPLIES && this.data != FormulaCharacter.EQUAL)) {
+				ArrayList<FormulaNode> newChilds = new ArrayList<>(this.children.size());
+				for (FormulaNode fN : this.children) {
+					newChilds.add(fN.convertToSimple());
+				}
+				return new FormulaNode(this.data.copy(), newChilds);
+			}
+			else if (this.data == FormulaCharacter.IMPLIES) {
+				FormulaNode child1 = this.children.get(0).convertToSimple();
+				FormulaNode child2 = this.children.get(1).convertToSimple();
+				FormulaNode notNode = new FormulaNode(FormulaCharacter.NOT, child1);
+				FormulaNode newNode = new FormulaNode(FormulaCharacter.OR, notNode, child2);
+				return newNode;
+			}
+			else {
+				FormulaNode child1 = this.children.get(0).convertToSimple();
+				FormulaNode child2 = this.children.get(1).convertToSimple();
+				FormulaNode trueNode = new FormulaNode(FormulaCharacter.AND, child1, child2);
+				FormulaNode falseNode = new FormulaNode(FormulaCharacter.AND, new FormulaNode(FormulaCharacter.NOT, child1), new FormulaNode(FormulaCharacter.NOT, child2));
+				FormulaNode newNode = new FormulaNode(FormulaCharacter.OR, trueNode, falseNode);
+				return newNode;
+			}
+		}
+
+		/**
 		 * Get's {@link #data data}
 		 * 
 		 * @return data
@@ -409,31 +568,34 @@ public class Formula {
 	 */
 	static enum FormulaCharacter implements ValidFormChar {
 		/** Left bracket */
-		P_LEFT('('),
+		P_LEFT('(', "("),
 		/** Right bracket */
-		P_RIGHT(')'),
+		P_RIGHT(')', ")"),
 		/** Logical or */
-		OR('|'),
+		OR('|', " \\lor "),
 		/** Logical and */
-		AND('&'),
+		AND('&', " \\land "),
 		/** Logical not */
-		NOT('!'),
+		NOT('!', " \\neg "),
 		/** Logical implies -> */
-		IMPLIES('>', "->"),
+		IMPLIES('>', "->", " \\to "),
 		/** Logical equals <-> */
-		EQUAL('<', "<->");
+		EQUAL('<', "<->", " \\leftrightarrow ");
 
 		private char icon;
 		private String fancy;
+		private String latexCode;
 
-		private FormulaCharacter(char p_icon) {
+		private FormulaCharacter(char p_icon, String p_latex) {
 			this.icon = p_icon;
 			this.fancy = p_icon + "";
+			this.latexCode = p_latex;
 		}
 
-		private FormulaCharacter(char p_icon, String p_fancy) {
+		private FormulaCharacter(char p_icon, String p_fancy, String p_latex) {
 			this.icon = p_icon;
 			this.fancy = p_fancy;
+			this.latexCode = p_latex;
 		}
 
 		@Override
@@ -465,6 +627,22 @@ public class Formula {
 				if (fI.getIcon().equals(icon)) return fI;
 			}
 			return null;
+		}
+
+		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#getLatex(boolean)
+		 */
+		@Override
+		public String getLatex(boolean letters) {
+			return this.latexCode;
+		}
+
+		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#copy()
+		 */
+		@Override
+		public ValidFormChar copy() {
+			return this;
 		}
 	}
 
@@ -554,6 +732,22 @@ public class Formula {
 		public void setVar(int var) {
 			this.var = var;
 		}
+
+		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#getLatex(boolean)
+		 */
+		@Override
+		public String getLatex(boolean letters) {
+			return getFancy(letters);
+		}
+
+		/**
+		 * @see de.tim.logicCalc.Formula.ValidFormChar#copy()
+		 */
+		@Override
+		public ValidFormChar copy() {
+			return new Variable(this.var);
+		}
 	}
 
 	/**
@@ -570,9 +764,23 @@ public class Formula {
 		/**
 		 * @param letters
 		 *            Whether to print variables as letters
-		 * @return Returns the string icon /symbol (May be multiple chars.
+		 * @return Returns the string icon /symbol (May be multiple chars.)
 		 */
 		public String getFancy(boolean letters);
+
+		/**
+		 * @param letters
+		 *            Whether to print variables as letters
+		 * @return Returns the latex code for this icon/symbol
+		 */
+		public String getLatex(boolean letters);
+
+		/**
+		 * Copys it self.
+		 * 
+		 * @return A new ValidFormCharacter with the same content.
+		 */
+		public ValidFormChar copy();
 	}
 
 	/**

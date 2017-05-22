@@ -55,7 +55,10 @@ public class Main {
 		System.out.println("a [<forms>] 		- Adds a formula. If not specified the program will ask for it later.");
 		System.out.println("list [l] 			- List data. If l is set, use letters.");
 		System.out.println("comp [l] 			- Compute data and display as matrix. If l is set, use letters.");
+		System.out.println("latex [l] <name>	- Prints out the formula in latex. If l is set, use letters.");
+		System.out.println("tree [l] <name>		- Prints out the latex code for the syntax tree. If l is set, use letters.");
 		System.out.println("all <name>	<val>	- Checks if the formula ");
+		System.out.println("convert <name>		- Converts formula to simple notation without implies and equals. ");
 		System.out.println();
 		System.out.println("Valid Variables:");
 		System.out.println("Ai with i being a natural number. Or:");
@@ -99,6 +102,7 @@ public class Main {
 			String line = Main.s.nextLine().toLowerCase();
 			String[] parts = line.split(" ");
 
+			String newName = "F" + Main.formulas.size();
 			switch (parts[0]) {
 				case "h":
 					Main.printHelp();
@@ -113,23 +117,24 @@ public class Main {
 				case "a":
 					if (parts.length >= 2) {
 						for (int i = 1; i < parts.length; i++) {
-							Formula form = new Formula(parts[i], "F" + Main.formulas.size());
+							Formula form = new Formula(parts[i], newName);
 							if (!form.isValid()) {
 								System.out.println(form.getInput() + " is not a valid formula.");
 							}
 							else {
 								Main.formulas.add(form);
+								System.out.println("Added Formula " + newName);
 							}
 						}
 					}
 					else {
 						System.out.println("Please enter a formula");
-						Formula form = new Formula(Main.s.nextLine().toLowerCase(), "F" + Main.formulas.size());
+						Formula form = new Formula(Main.s.nextLine().toLowerCase(), newName);
 						if (!form.isValid()) {
 							System.out.println(form.getInput() + " is not a valid formula.");
 						}
 						else {
-							Main.formulas.add(form);
+							System.out.println("Added Formula " + newName);
 						}
 					}
 				break;
@@ -202,6 +207,62 @@ public class Main {
 					}
 					else {
 						System.out.println("Need a name and a value.");
+					}
+				break;
+				case "convert":
+					if (parts.length < 2) {
+						System.out.println("Need a name.");
+					}
+					else {
+						Formula f1;
+						Formula f2;
+						try {
+							f1 = Main.formulas.get(Integer.parseInt(parts[1].substring(1)));
+						} catch (NumberFormatException e) {
+							System.out.println("Not a valid Formula");
+							break;
+						}
+						f2 = f1.convertToSimple(newName);
+						Main.formulas.add(f2);
+						System.out.println("Added Formula " + newName);
+					}
+				break;
+				case "latex":
+					letters = false;
+					if (parts.length > 1 && parts[1].equals("l")) {
+						letters = true;
+					}
+					if (parts.length < 2 + (letters ? 1 : 0)) {
+						System.out.println("Need a name.");
+					}
+					else {
+						Formula f;
+						try {
+							f = Main.formulas.get(Integer.parseInt(parts[(letters ? 2 : 1)].substring(1)));
+						} catch (NumberFormatException e) {
+							System.out.println("Not a valid Formula");
+							break;
+						}
+						System.out.println(f.getLatex(letters));
+					}
+				break;
+				case "tree":
+					letters = false;
+					if (parts.length > 1 && parts[1].equals("l")) {
+						letters = true;
+					}
+					if (parts.length < 2 + (letters ? 1 : 0)) {
+						System.out.println("Need a name.");
+					}
+					else {
+						Formula f;
+						try {
+							f = Main.formulas.get(Integer.parseInt(parts[(letters ? 2 : 1)].substring(1)));
+						} catch (NumberFormatException e) {
+							System.out.println("Not a valid Formula");
+							break;
+						}
+						System.out.println(f.getLatexTree(letters));
 					}
 				break;
 				case "list":
