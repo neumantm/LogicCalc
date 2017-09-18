@@ -255,10 +255,10 @@ public class Formula {
 			for (int j = 0; j < childCont.length; j++) {
 				String line = childCont[j];
 				if (i == this.root.getChildren().size() - 1 && j == childCont.length - 1) {
-					tree += "    " + line + ";\n";
+					tree += "  " + line + ";\n";
 				}
 				else {
-					tree += "    " + line + "\n";
+					tree += "  " + line + "\n";
 				}
 			}
 		}
@@ -504,7 +504,7 @@ public class Formula {
 			for (int i = 0; i < this.children.size(); i++) {
 				String[] childCont = this.children.get(i).getLatexTreePart(letters);
 				for (String s : childCont) {
-					ret.add("    " + s);
+					ret.add("  " + s);
 				}
 			}
 			ret.add("}");
